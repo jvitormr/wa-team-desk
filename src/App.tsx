@@ -9,6 +9,7 @@ import AuthPage from "./pages/auth/AuthPage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import ConversationsPage from "./pages/conversations/ConversationsPage";
 import NotFound from "./pages/NotFound";
+import PlaceholderPage from "./pages/PlaceholderPage";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,55 @@ const App = () => (
             <ProtectedRoute>
               <DashboardLayout>
                 <ConversationsPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/customers" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <PlaceholderPage title="Clientes" />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/sales" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <PlaceholderPage title="Funil de Vendas" />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/reports" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <PlaceholderPage title="Relatórios" />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/auto-responses" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <PlaceholderPage title="Respostas Automáticas" />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/bot-settings" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <PlaceholderPage title="Configurações do Bot" />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/operators" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <PlaceholderPage title="Operadores" />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <PlaceholderPage title="Configurações" />
               </DashboardLayout>
             </ProtectedRoute>
           } />
