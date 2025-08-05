@@ -61,6 +61,26 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// WhatsCRM custom colors
+				whatsapp: {
+					DEFAULT: 'hsl(var(--whatsapp-green))',
+					dark: 'hsl(var(--whatsapp-green-dark))'
+				},
+				success: 'hsl(var(--success))',
+				warning: 'hsl(var(--warning))',
+				info: 'hsl(var(--info))',
+				status: {
+					new: 'hsl(var(--status-new))',
+					progress: 'hsl(var(--status-progress))',
+					completed: 'hsl(var(--status-completed))',
+					closed: 'hsl(var(--status-closed))'
+				},
+				priority: {
+					low: 'hsl(var(--priority-low))',
+					normal: 'hsl(var(--priority-normal))',
+					high: 'hsl(var(--priority-high))',
+					urgent: 'hsl(var(--priority-urgent))'
 				}
 			},
 			borderRadius: {
