@@ -14,7 +14,312 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      auto_responses: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean | null
+          priority: number | null
+          response_text: string
+          trigger_keyword: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          response_text: string
+          trigger_keyword: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          priority?: number | null
+          response_text?: string
+          trigger_keyword?: string
+        }
+        Relationships: []
+      }
+      bot_settings: {
+        Row: {
+          created_at: string
+          id: string
+          setting_key: string
+          setting_value: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          setting_key: string
+          setting_value: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      conversations: {
+        Row: {
+          assigned_operator_id: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          last_message_at: string | null
+          priority: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_operator_id?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          last_message_at?: string | null
+          priority?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_operator_id?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          last_message_at?: string | null
+          priority?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_assigned_operator_id_fkey"
+            columns: ["assigned_operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          cnpj: string | null
+          created_at: string
+          custom_fields: Json | null
+          email: string | null
+          id: string
+          name: string | null
+          notes: string | null
+          tags: string[] | null
+          updated_at: string
+          whatsapp_number: string
+        }
+        Insert: {
+          cnpj?: string | null
+          created_at?: string
+          custom_fields?: Json | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          notes?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          whatsapp_number: string
+        }
+        Update: {
+          cnpj?: string | null
+          created_at?: string
+          custom_fields?: Json | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          notes?: string | null
+          tags?: string[] | null
+          updated_at?: string
+          whatsapp_number?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          is_read: boolean | null
+          message_type: string | null
+          sender_id: string | null
+          sender_type: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message_type?: string | null
+          sender_id?: string | null
+          sender_type: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message_type?: string | null
+          sender_id?: string | null
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operators: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_available: boolean | null
+          is_online: boolean | null
+          max_concurrent_chats: number | null
+          name: string
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_available?: boolean | null
+          is_online?: boolean | null
+          max_concurrent_chats?: number | null
+          name: string
+          role?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_available?: boolean | null
+          is_online?: boolean | null
+          max_concurrent_chats?: number | null
+          name?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sales_leads: {
+        Row: {
+          assigned_operator_id: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          next_followup_at: string | null
+          notes: string | null
+          probability: number | null
+          stage_id: string
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          assigned_operator_id?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          next_followup_at?: string | null
+          notes?: string | null
+          probability?: number | null
+          stage_id: string
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          assigned_operator_id?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          next_followup_at?: string | null
+          notes?: string | null
+          probability?: number | null
+          stage_id?: string
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_leads_assigned_operator_id_fkey"
+            columns: ["assigned_operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_leads_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_leads_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "sales_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_stages: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          order_position: number
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          order_position: number
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          order_position?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
