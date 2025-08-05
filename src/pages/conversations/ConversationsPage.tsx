@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,15 +29,58 @@ export default function ConversationsPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<ConversationFilters>({});
+  const [error, setError] = useState<string | null>(null);
   const { operator } = useAuth();
+
+  const fetchConversations = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      let query = supabase
+        .from('conversations')
+        .select(`
+          *,
+          customer:customers(*),
+          assigned_operator:operators(name)
+        `)
+        .order('last_message_at', { ascending: false });
+
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+
+      if (filters.assigned_operator_id) {
+        query = query.eq('assigned_operator_id', filters.assigned_operator_id);
+      }
+
+      if (filters.priority) {
+        query = query.eq('priority', filters.priority);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        setError('Erro ao carregar conversas');
+        console.error(error);
+      } else if (data) {
+        setConversations(data as Conversation[]);
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Erro ao carregar conversas');
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
 
   useEffect(() => {
     fetchConversations();
-    
+
     // Subscribe to real-time updates
     const channel = supabase
       .channel('conversations-changes')
-      .on('postgres_changes', 
+      .on('postgres_changes',
         { event: '*', schema: 'public', table: 'conversations' },
         () => fetchConversations()
       )
@@ -46,40 +89,7 @@ export default function ConversationsPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [filters]);
-
-  const fetchConversations = async () => {
-    setLoading(true);
-    
-    let query = supabase
-      .from('conversations')
-      .select(`
-        *,
-        customer:customers(*),
-        assigned_operator:operators(name)
-      `)
-      .order('last_message_at', { ascending: false });
-
-    if (filters.status) {
-      query = query.eq('status', filters.status);
-    }
-    
-    if (filters.assigned_operator_id) {
-      query = query.eq('assigned_operator_id', filters.assigned_operator_id);
-    }
-    
-    if (filters.priority) {
-      query = query.eq('priority', filters.priority);
-    }
-
-    const { data, error } = await query;
-    
-    if (!error && data) {
-      setConversations(data as Conversation[]);
-    }
-    
-    setLoading(false);
-  };
+  }, [fetchConversations]);
 
   const updateConversationStatus = async (conversationId: string, status: string) => {
     const { error } = await supabase
@@ -151,11 +161,14 @@ export default function ConversationsPage() {
               </div>
             </div>
             
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Status</label>
-              <Select value={filters.status || ''} onValueChange={(value) => 
-                setFilters({ ...filters, status: value as any })
-              }>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Status</label>
+                <Select
+                  value={filters.status || ''}
+                  onValueChange={(value: Conversation['status'] | '') =>
+                    setFilters({ ...filters, status: value || undefined })
+                  }
+                >
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
@@ -169,11 +182,14 @@ export default function ConversationsPage() {
               </Select>
             </div>
             
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Prioridade</label>
-              <Select value={filters.priority || ''} onValueChange={(value) => 
-                setFilters({ ...filters, priority: value as any })
-              }>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Prioridade</label>
+                <Select
+                  value={filters.priority || ''}
+                  onValueChange={(value: Conversation['priority'] | '') =>
+                    setFilters({ ...filters, priority: value || undefined })
+                  }
+                >
                 <SelectTrigger>
                   <SelectValue placeholder="Todas as prioridades" />
                 </SelectTrigger>
@@ -209,6 +225,12 @@ export default function ConversationsPage() {
       <div className="grid gap-4">
         {loading ? (
           <div className="text-center py-8">Carregando conversas...</div>
+        ) : error ? (
+          <Card>
+            <CardContent className="py-8 text-center text-destructive">
+              {error}
+            </CardContent>
+          </Card>
         ) : conversations.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center">
