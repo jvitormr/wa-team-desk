@@ -8,6 +8,9 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import AuthPage from "./pages/auth/AuthPage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 import ConversationsPage from "./pages/conversations/ConversationsPage";
+import InboxPage from "./pages/inbox/InboxPage";
+import WhatsAppConnectionPage from "./pages/whatsapp/WhatsAppConnectionPage";
+import ChatbotFlowsPage from "./pages/chatbot/ChatbotFlowsPage";
 import NotFound from "./pages/NotFound";
 import PlaceholderPage from "./pages/PlaceholderPage";
 
@@ -38,10 +41,31 @@ const App = () => (
               </DashboardLayout>
             </ProtectedRoute>
           } />
+          <Route path="/inbox" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <InboxPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
           <Route path="/conversations" element={
             <ProtectedRoute>
               <DashboardLayout>
                 <ConversationsPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/whatsapp" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <WhatsAppConnectionPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+          <Route path="/chatbot" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <ChatbotFlowsPage />
               </DashboardLayout>
             </ProtectedRoute>
           } />

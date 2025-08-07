@@ -41,6 +41,90 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_flows: {
+        Row: {
+          created_at: string
+          description: string | null
+          flow_data: Json
+          id: string
+          is_active: boolean | null
+          name: string
+          trigger_keywords: string[] | null
+          updated_at: string
+          welcome_message: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          flow_data: Json
+          id?: string
+          is_active?: boolean | null
+          name: string
+          trigger_keywords?: string[] | null
+          updated_at?: string
+          welcome_message?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          flow_data?: Json
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          trigger_keywords?: string[] | null
+          updated_at?: string
+          welcome_message?: string | null
+        }
+        Relationships: []
+      }
+      bot_sessions: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          current_node_id: string | null
+          flow_id: string | null
+          id: string
+          is_active: boolean | null
+          session_data: Json | null
+          updated_at: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          current_node_id?: string | null
+          flow_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          session_data?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          current_node_id?: string | null
+          flow_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          session_data?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_sessions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bot_sessions_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "bot_flows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_settings: {
         Row: {
           created_at: string
@@ -68,31 +152,40 @@ export type Database = {
       conversations: {
         Row: {
           assigned_operator_id: string | null
+          auto_closed_at: string | null
+          bot_session_id: string | null
           created_at: string
           customer_id: string
           id: string
           last_message_at: string | null
           priority: string | null
+          source: string | null
           status: string
           updated_at: string
         }
         Insert: {
           assigned_operator_id?: string | null
+          auto_closed_at?: string | null
+          bot_session_id?: string | null
           created_at?: string
           customer_id: string
           id?: string
           last_message_at?: string | null
           priority?: string | null
+          source?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           assigned_operator_id?: string | null
+          auto_closed_at?: string | null
+          bot_session_id?: string | null
           created_at?: string
           customer_id?: string
           id?: string
           last_message_at?: string | null
           priority?: string | null
+          source?: string | null
           status?: string
           updated_at?: string
         }
@@ -102,6 +195,13 @@ export type Database = {
             columns: ["assigned_operator_id"]
             isOneToOne: false
             referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_bot_session_id_fkey"
+            columns: ["bot_session_id"]
+            isOneToOne: false
+            referencedRelation: "bot_sessions"
             referencedColumns: ["id"]
           },
           {
@@ -152,6 +252,50 @@ export type Database = {
         }
         Relationships: []
       }
+      flow_nodes: {
+        Row: {
+          conditions: Json | null
+          content: string | null
+          created_at: string
+          flow_id: string
+          id: string
+          next_node_id: string | null
+          node_id: string
+          node_type: string
+          options: Json | null
+        }
+        Insert: {
+          conditions?: Json | null
+          content?: string | null
+          created_at?: string
+          flow_id: string
+          id?: string
+          next_node_id?: string | null
+          node_id: string
+          node_type: string
+          options?: Json | null
+        }
+        Update: {
+          conditions?: Json | null
+          content?: string | null
+          created_at?: string
+          flow_id?: string
+          id?: string
+          next_node_id?: string | null
+          node_id?: string
+          node_type?: string
+          options?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flow_nodes_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "bot_flows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -159,9 +303,12 @@ export type Database = {
           created_at: string
           id: string
           is_read: boolean | null
+          media_url: string | null
           message_type: string | null
+          replied_to_message_id: string | null
           sender_id: string | null
           sender_type: string
+          whatsapp_message_id: string | null
         }
         Insert: {
           content: string
@@ -169,9 +316,12 @@ export type Database = {
           created_at?: string
           id?: string
           is_read?: boolean | null
+          media_url?: string | null
           message_type?: string | null
+          replied_to_message_id?: string | null
           sender_id?: string | null
           sender_type: string
+          whatsapp_message_id?: string | null
         }
         Update: {
           content?: string
@@ -179,9 +329,12 @@ export type Database = {
           created_at?: string
           id?: string
           is_read?: boolean | null
+          media_url?: string | null
           message_type?: string | null
+          replied_to_message_id?: string | null
           sender_id?: string | null
           sender_type?: string
+          whatsapp_message_id?: string | null
         }
         Relationships: [
           {
@@ -231,6 +384,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      quick_replies: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_global: boolean | null
+          operator_id: string | null
+          shortcut: string | null
+          title: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_global?: boolean | null
+          operator_id?: string | null
+          shortcut?: string | null
+          title: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_global?: boolean | null
+          operator_id?: string | null
+          shortcut?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_replies_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "operators"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sales_leads: {
         Row: {
@@ -317,6 +508,63 @@ export type Database = {
           id?: string
           name?: string
           order_position?: number
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      whatsapp_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          is_connected: boolean | null
+          last_ping_at: string | null
+          qr_code: string | null
+          session_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_connected?: boolean | null
+          last_ping_at?: string | null
+          qr_code?: string | null
+          session_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_connected?: boolean | null
+          last_ping_at?: string | null
+          qr_code?: string | null
+          session_id?: string
+          updated_at?: string
         }
         Relationships: []
       }

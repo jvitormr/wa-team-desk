@@ -10,6 +10,8 @@ import {
   UserCheck,
   Phone,
   LogOut,
+  Inbox,
+  Wifi,
 } from "lucide-react";
 
 import {
@@ -31,13 +33,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
 const mainItems = [
-  { title: "Atendimentos", url: "/conversations", icon: MessageSquare },
+  { title: "Caixa de Entrada", url: "/inbox", icon: Inbox },
+  { title: "Conversas", url: "/conversations", icon: MessageSquare },
+  { title: "WhatsApp", url: "/whatsapp", icon: Phone },
   { title: "Clientes", url: "/customers", icon: Users },
   { title: "Funil de Vendas", url: "/sales", icon: TrendingUp },
   { title: "Relatórios", url: "/reports", icon: BarChart3 },
 ];
 
 const botItems = [
+  { title: "Fluxos do Chatbot", url: "/chatbot", icon: Bot },
   { title: "Respostas Automáticas", url: "/auto-responses", icon: Bot },
   { title: "Configurações do Bot", url: "/bot-settings", icon: Settings },
 ];

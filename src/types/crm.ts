@@ -30,23 +30,29 @@ export interface Conversation {
   customer?: Customer;
   assigned_operator_id?: string;
   assigned_operator?: { name: string } | Operator;
-  status: 'new' | 'in_progress' | 'completed' | 'closed';
-  priority: 'low' | 'normal' | 'high' | 'urgent';
+  status: string;
+  priority: string;
   last_message_at: string;
   created_at: string;
   updated_at: string;
   unread_count?: number;
+  bot_session_id?: string;
+  source?: string;
+  auto_closed_at?: string;
 }
 
 export interface Message {
   id: string;
   conversation_id: string;
-  sender_type: 'customer' | 'operator' | 'bot';
+  sender_type: string;
   sender_id?: string;
   content: string;
-  message_type: 'text' | 'image' | 'audio' | 'video' | 'document';
+  message_type: string;
   is_read: boolean;
   created_at: string;
+  whatsapp_message_id?: string;
+  media_url?: string;
+  replied_to_message_id?: string;
 }
 
 export interface SalesStage {
@@ -92,8 +98,8 @@ export interface BotSetting {
 }
 
 export interface ConversationFilters {
-  status?: 'new' | 'in_progress' | 'completed' | 'closed';
+  status?: string;
   assigned_operator_id?: string;
-  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  priority?: string;
   search?: string;
 }
