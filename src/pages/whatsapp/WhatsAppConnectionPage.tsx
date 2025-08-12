@@ -29,7 +29,9 @@ export default function WhatsAppConnectionPage() {
           table: 'whatsapp_sessions'
         },
         (payload) => {
-          if (payload.eventType === 'UPDATE' && payload.new) {
+          if (payload.eventType === 'DELETE') {
+            setSession(null);
+          } else if (payload.new) {
             setSession(payload.new as WhatsAppSession);
           }
         }
