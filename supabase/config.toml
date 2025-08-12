@@ -1,1 +1,7 @@
 project_id = "bobpwdzonobaeglewuer"
+
+[functions.whatsapp-connect]
+verify_jwt = true
+
+[functions.whatsapp-disconnect]
+verify_jwt = true
