@@ -12,26 +12,36 @@ export const useAuth = () => {
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
         try {
           setSession(session);
           setUser(session?.user ?? null);
 
           if (session?.user) {
-            const { data } = await supabase
-              .from('operators')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .maybeSingle();
+            // Deferir a busca do operador para evitar deadlocks no callback
+            setTimeout(async () => {
+              try {
+                const { data } = await supabase
+                  .from('operators')
+                  .select('*')
+                  .eq('user_id', session.user.id)
+                  .maybeSingle();
 
-            setOperator((data as Operator) ?? null);
+                setOperator((data as Operator) ?? null);
+              } catch (e) {
+                console.error('useAuth onAuthStateChange operator fetch error', e);
+                setOperator(null);
+              } finally {
+                setLoading(false);
+              }
+            }, 0);
           } else {
             setOperator(null);
+            setLoading(false);
           }
         } catch (e) {
           console.error('useAuth onAuthStateChange error', e);
           setOperator(null);
-        } finally {
           setLoading(false);
         }
       }
@@ -103,6 +113,6 @@ export const useAuth = () => {
     signIn,
     signUp,
     signOut,
-    isAuthenticated: !!user && !!operator,
+    isAuthenticated: !!user,
   };
 };
