@@ -164,16 +164,16 @@ export default function ConversationsPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Status</label>
                 <Select
-                  value={filters.status || ''}
-                  onValueChange={(value: Conversation['status'] | '') =>
-                    setFilters({ ...filters, status: value || undefined })
+                  value={filters.status ?? 'all'}
+                  onValueChange={(value) =>
+                    setFilters({ ...filters, status: value === 'all' ? undefined : (value as Conversation['status']) })
                   }
                 >
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os status</SelectItem>
+                  <SelectItem value="all">Todos os status</SelectItem>
                   <SelectItem value="new">Novo</SelectItem>
                   <SelectItem value="in_progress">Em Atendimento</SelectItem>
                   <SelectItem value="completed">Concluído</SelectItem>
@@ -185,16 +185,16 @@ export default function ConversationsPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Prioridade</label>
                 <Select
-                  value={filters.priority || ''}
-                  onValueChange={(value: Conversation['priority'] | '') =>
-                    setFilters({ ...filters, priority: value || undefined })
+                  value={filters.priority ?? 'all'}
+                  onValueChange={(value) =>
+                    setFilters({ ...filters, priority: value === 'all' ? undefined : (value as Conversation['priority']) })
                   }
                 >
                 <SelectTrigger>
                   <SelectValue placeholder="Todas as prioridades" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas as prioridades</SelectItem>
+                  <SelectItem value="all">Todas as prioridades</SelectItem>
                   <SelectItem value="low">Baixa</SelectItem>
                   <SelectItem value="normal">Normal</SelectItem>
                   <SelectItem value="high">Alta</SelectItem>
@@ -205,15 +205,21 @@ export default function ConversationsPage() {
             
             <div className="space-y-2">
               <label className="text-sm font-medium">Operador</label>
-              <Select value={filters.assigned_operator_id || ''} onValueChange={(value) => 
-                setFilters({ ...filters, assigned_operator_id: value })
-              }>
+              <Select value={filters.assigned_operator_id ?? 'all'} onValueChange={(value) => {
+                if (value === 'all') {
+                  setFilters({ ...filters, assigned_operator_id: undefined });
+                } else if (value === 'me') {
+                  if (operator?.id) setFilters({ ...filters, assigned_operator_id: operator.id });
+                } else {
+                  setFilters({ ...filters, assigned_operator_id: value });
+                }
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os operadores" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os operadores</SelectItem>
-                  <SelectItem value={operator?.id || ''}>Meus atendimentos</SelectItem>
+                  <SelectItem value="all">Todos os operadores</SelectItem>
+                  <SelectItem value="me" disabled={!operator?.id}>Meus atendimentos</SelectItem>
                 </SelectContent>
               </Select>
             </div>
