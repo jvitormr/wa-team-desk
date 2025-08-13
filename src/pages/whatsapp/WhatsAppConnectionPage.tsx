@@ -17,6 +17,19 @@ export default function WhatsAppConnectionPage() {
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    if (qrCode && qrCanvasRef.current) {
+      QRCodeLib.toCanvas(qrCanvasRef.current, qrCode, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+    }
+  }, [qrCode]);
+
+  useEffect(() => {
     fetchStatus();
     return () => {
       if (wsRef.current) {
@@ -125,17 +138,6 @@ export default function WhatsAppConnectionPage() {
             setQrCode(message.qr);
             setStatus('qr_ready');
             
-            // Generate QR code image
-            if (qrCanvasRef.current) {
-              await QRCodeLib.toCanvas(qrCanvasRef.current, message.qr, {
-                width: 256,
-                margin: 2,
-                color: {
-                  dark: '#000000',
-                  light: '#FFFFFF'
-                }
-              });
-            }
             
             toast({
               title: "QR Code gerado",
