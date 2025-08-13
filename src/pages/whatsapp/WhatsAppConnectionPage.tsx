@@ -69,17 +69,22 @@ export default function WhatsAppConnectionPage() {
   const startConnection = async () => {
     setConnecting(true);
     try {
-      const { error } = await supabase.functions.invoke('whatsapp-connect');
-      
+      const { data, error } = await supabase.functions.invoke('whatsapp-connect');
+
       if (error) throw error;
-      
+
+      // If the function returns the session, use it immediately to show the QR code
+      if (data?.session) {
+        setSession(data.session as WhatsAppSession);
+      }
+
       toast({
         title: "Conexão iniciada",
         description: "Iniciando conexão com WhatsApp Web..."
       });
-      
-      // Refresh session data
-      setTimeout(fetchSession, 2000);
+
+      // Also refresh shortly after to catch any updates (fallback)
+      setTimeout(fetchSession, 1500);
     } catch (error) {
       console.error('Error starting WhatsApp connection:', error);
       toast({

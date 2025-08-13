@@ -573,7 +573,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_current_operator_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      has_operator_role: {
+        Args: { _role: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
