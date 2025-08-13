@@ -1,5 +1,5 @@
 -- WhatsApp auth storage and status tables
--- 1) Credentials as a JSON blob (Baileys creds + keys), per user
+-- 1) Credentials as a JSON blob (WhatsApp session data), per user
 CREATE TABLE IF NOT EXISTS public.whatsapp_auth (
   user_id uuid PRIMARY KEY,
   data jsonb NOT NULL DEFAULT '{}'::jsonb,
