@@ -81,13 +81,13 @@ export default function WhatsAppConnectionPage() {
       }
 
       // Start WA connection
-      const { data, error } = await supabase.functions.invoke('wa-start', {
+      const { data: startData, error } = await supabase.functions.invoke('wa-start', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
       });
 
-      if (error) {
+      if (error || !startData?.wsUrl) {
         console.error('Error starting connection:', error);
         toast({
           title: "Erro",
@@ -101,14 +101,14 @@ export default function WhatsAppConnectionPage() {
         title: "Sucesso",
         description: "Iniciando conexão WhatsApp..."
       });
-      
+
       // Open WebSocket connection
-      const wsUrl = `wss://bobpwdzonobaeglewuer.functions.supabase.co/functions/v1/wa-ws?token=${session.access_token}`;
-      
+      const wsUrl = startData.wsUrl as string;
+
       if (wsRef.current) {
         wsRef.current.close();
       }
-      
+
       wsRef.current = new WebSocket(wsUrl);
       
       wsRef.current.onopen = () => {
