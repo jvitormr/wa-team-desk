@@ -1,64 +1,63 @@
-import { useState, useEffect } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { QrCode, Smartphone, Wifi, WifiOff, RefreshCw } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { toast } from "@/components/ui/use-toast";
-import { WhatsAppSession } from "@/types/whatsapp";
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, CheckCircle2, Clock, QrCode, Smartphone, MessageSquare, Users, Settings, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
+import QRCodeLib from 'qrcode';
 
 export default function WhatsAppConnectionPage() {
-  const [session, setSession] = useState<WhatsAppSession | null>(null);
+  const [status, setStatus] = useState<string>('disconnected');
+  const [qrCode, setQrCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
-  const { operator } = useAuth();
+  const wsRef = useRef<WebSocket | null>(null);
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    fetchSession();
-    
-    // Set up real-time subscription for session updates
-    const channel = supabase
-      .channel('whatsapp-session-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'whatsapp_sessions'
-        },
-        (payload) => {
-          if (payload.eventType === 'DELETE') {
-            setSession(null);
-          } else if (payload.new) {
-            setSession(payload.new as WhatsAppSession);
-          }
-        }
-      )
-      .subscribe();
-
+    fetchStatus();
     return () => {
-      supabase.removeChannel(channel);
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
     };
   }, []);
 
-  const fetchSession = async () => {
+  const fetchStatus = async () => {
     try {
-      const { data, error } = await supabase
-        .from('whatsapp_sessions')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast({
+          title: "Erro",
+          description: "Você precisa estar logado",
+          variant: "destructive"
+        });
+        return;
+      }
 
-      if (error) throw error;
-      setSession(data);
+      const response = await supabase.functions.invoke('wa-status', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        console.error('Error fetching status:', response.error);
+        toast({
+          title: "Erro",
+          description: "Erro ao verificar status do WhatsApp",
+          variant: "destructive"
+        });
+      } else {
+        setStatus(response.data?.status || 'disconnected');
+      }
     } catch (error) {
-      console.error('Error fetching WhatsApp session:', error);
+      console.error('Error fetching status:', error);
       toast({
         title: "Erro",
-        description: "Erro ao carregar sessão do WhatsApp",
+        description: "Erro ao verificar status do WhatsApp",
         variant: "destructive"
       });
     } finally {
@@ -68,28 +67,132 @@ export default function WhatsAppConnectionPage() {
 
   const startConnection = async () => {
     setConnecting(true);
+    setQrCode(null);
+    
     try {
-      const { data, error } = await supabase.functions.invoke('whatsapp-connect');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast({
+          title: "Erro",
+          description: "Você precisa estar logado",
+          variant: "destructive"
+        });
+        return;
+      }
 
-      if (error) throw error;
+      // Start WA connection
+      const { data, error } = await supabase.functions.invoke('wa-start', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
-      // If the function returns the session, use it immediately to show the QR code
-      if (data?.session) {
-        setSession(data.session as WhatsAppSession);
+      if (error) {
+        console.error('Error starting connection:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao iniciar conexão",
+          variant: "destructive"
+        });
+        return;
       }
 
       toast({
-        title: "Conexão iniciada",
-        description: "Iniciando conexão com WhatsApp Web..."
+        title: "Sucesso",
+        description: "Iniciando conexão WhatsApp..."
       });
-
-      // Also refresh shortly after to catch any updates (fallback)
-      setTimeout(fetchSession, 1500);
+      
+      // Open WebSocket connection
+      const wsUrl = `wss://bobpwdzonobaeglewuer.functions.supabase.co/functions/v1/wa-ws?token=${session.access_token}`;
+      
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      
+      wsRef.current = new WebSocket(wsUrl);
+      
+      wsRef.current.onopen = () => {
+        console.log('WebSocket connected');
+        setStatus('connecting');
+      };
+      
+      wsRef.current.onmessage = async (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          console.log('WebSocket message:', message);
+          
+          if (message.type === 'qr') {
+            setQrCode(message.qr);
+            setStatus('qr_ready');
+            
+            // Generate QR code image
+            if (qrCanvasRef.current) {
+              await QRCodeLib.toCanvas(qrCanvasRef.current, message.qr, {
+                width: 256,
+                margin: 2,
+                color: {
+                  dark: '#000000',
+                  light: '#FFFFFF'
+                }
+              });
+            }
+            
+            toast({
+              title: "QR Code gerado",
+              description: "Escaneie com seu WhatsApp"
+            });
+          } else if (message.type === 'status') {
+            setStatus(message.status);
+            
+            if (message.status === 'connected') {
+              setQrCode(null);
+              toast({
+                title: "Conectado",
+                description: "WhatsApp conectado com sucesso!"
+              });
+            } else if (message.status === 'disconnected') {
+              setQrCode(null);
+              toast({
+                title: "Desconectado",
+                description: "WhatsApp desconectado"
+              });
+            } else if (message.status === 'reconnecting') {
+              toast({
+                title: "Reconectando",
+                description: "Reconectando..."
+              });
+            }
+          } else if (message.type === 'error') {
+            toast({
+              title: "Erro",
+              description: message.message || 'Erro na conexão',
+              variant: "destructive"
+            });
+            setStatus('error');
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      };
+      
+      wsRef.current.onclose = () => {
+        console.log('WebSocket disconnected');
+      };
+      
+      wsRef.current.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        toast({
+          title: "Erro",
+          description: "Erro na comunicação com o servidor",
+          variant: "destructive"
+        });
+      };
+      
     } catch (error) {
-      console.error('Error starting WhatsApp connection:', error);
+      console.error('Error starting connection:', error);
       toast({
         title: "Erro",
-        description: "Erro ao iniciar conexão com WhatsApp",
+        description: "Erro ao iniciar conexão",
         variant: "destructive"
       });
     } finally {
@@ -99,23 +202,91 @@ export default function WhatsAppConnectionPage() {
 
   const disconnectSession = async () => {
     try {
-      const { error } = await supabase.functions.invoke('whatsapp-disconnect');
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Desconectado",
-        description: "Sessão do WhatsApp desconectada"
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast({
+          title: "Erro",
+          description: "Você precisa estar logado",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('wa-logout', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
-      
-      fetchSession();
+
+      if (error) {
+        console.error('Error disconnecting:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao desconectar",
+          variant: "destructive"
+        });
+      } else {
+        console.log('Disconnected:', data);
+        toast({
+          title: "Sucesso",
+          description: "Desconectado com sucesso!"
+        });
+        setStatus('disconnected');
+        setQrCode(null);
+        
+        // Close WebSocket
+        if (wsRef.current) {
+          wsRef.current.close();
+        }
+      }
     } catch (error) {
-      console.error('Error disconnecting WhatsApp:', error);
+      console.error('Error disconnecting:', error);
       toast({
         title: "Erro",
-        description: "Erro ao desconectar WhatsApp",
+        description: "Erro ao desconectar",
         variant: "destructive"
       });
+    }
+  };
+
+  const getStatusInfo = () => {
+    switch (status) {
+      case 'connected':
+        return {
+          text: 'Conectado',
+          variant: 'default' as const,
+          icon: CheckCircle2,
+          description: 'WhatsApp conectado e funcionando'
+        };
+      case 'connecting':
+      case 'qr_ready':
+        return {
+          text: 'Aguardando',
+          variant: 'secondary' as const,
+          icon: Clock,
+          description: 'Escaneie o QR Code com seu WhatsApp'
+        };
+      case 'reconnecting':
+        return {
+          text: 'Reconectando',
+          variant: 'secondary' as const,
+          icon: Clock,
+          description: 'Tentando reconectar automaticamente'
+        };
+      case 'error':
+        return {
+          text: 'Erro',
+          variant: 'destructive' as const,
+          icon: AlertCircle,
+          description: 'Erro na conexão. Tente novamente.'
+        };
+      default:
+        return {
+          text: 'Desconectado',
+          variant: 'destructive' as const,
+          icon: AlertCircle,
+          description: 'WhatsApp não está conectado'
+        };
     }
   };
 
@@ -126,6 +297,9 @@ export default function WhatsAppConnectionPage() {
       </div>
     );
   }
+
+  const statusInfo = getStatusInfo();
+  const StatusIcon = statusInfo.icon;
 
   return (
     <div className="space-y-6">
@@ -147,64 +321,36 @@ export default function WhatsAppConnectionPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <span>Status:</span>
-              <Badge variant={session?.is_connected ? "default" : "secondary"}>
-                {session?.is_connected ? (
-                  <>
-                    <Wifi className="h-3 w-3 mr-1" />
-                    Conectado
-                  </>
-                ) : (
-                  <>
-                    <WifiOff className="h-3 w-3 mr-1" />
-                    Desconectado
-                  </>
-                )}
-              </Badge>
-            </div>
-            
-            {session?.last_ping_at && (
-              <div className="flex items-center justify-between">
-                <span>Última atividade:</span>
-                <span className="text-sm text-muted-foreground">
-                  {new Date(session.last_ping_at).toLocaleString('pt-BR')}
-                </span>
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <StatusIcon className="h-5 w-5" />
+                  <Badge variant={statusInfo.variant}>
+                    {statusInfo.text}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {statusInfo.description}
+                </p>
               </div>
-            )}
-
-            <div className="flex gap-2">
-              {!session?.is_connected ? (
-                <Button 
-                  onClick={startConnection} 
-                  disabled={connecting}
-                  className="flex-1"
-                >
-                  {connecting ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      Conectando...
-                    </>
-                  ) : (
-                    <>
-                      <Wifi className="h-4 w-4 mr-2" />
-                      Conectar
-                    </>
-                  )}
-                </Button>
-              ) : (
-                <Button 
-                  onClick={disconnectSession}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  <WifiOff className="h-4 w-4 mr-2" />
-                  Desconectar
-                </Button>
-              )}
-              
-              <Button variant="outline" onClick={fetchSession}>
-                <RefreshCw className="h-4 w-4" />
-              </Button>
+              <div className="flex gap-2">
+                {status === 'connected' ? (
+                  <Button 
+                    variant="destructive" 
+                    onClick={disconnectSession}
+                    size="sm"
+                  >
+                    Desconectar
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={startConnection} 
+                    disabled={connecting || status === 'connecting'}
+                    size="sm"
+                  >
+                    {connecting ? 'Conectando...' : 'Conectar'}
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -216,41 +362,31 @@ export default function WhatsAppConnectionPage() {
               <QrCode className="h-5 w-5" />
               QR Code
             </CardTitle>
+            <CardDescription>
+              Escaneie este código com seu WhatsApp
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            {session?.qr_code && !session.is_connected ? (
-              <div className="space-y-4">
-                <div className="flex justify-center">
-                  <img 
-                    src={session.qr_code} 
-                    alt="QR Code WhatsApp" 
-                    className="w-48 h-48 border rounded-lg"
-                  />
-                </div>
-                <Alert>
-                  <Smartphone className="h-4 w-4" />
-                  <AlertDescription>
-                    Escaneie este QR Code com o WhatsApp do seu celular em:
-                    <br />
-                    <strong>WhatsApp → Menu → Aparelhos conectados → Conectar um aparelho</strong>
-                  </AlertDescription>
-                </Alert>
-              </div>
-            ) : session?.is_connected ? (
-              <div className="text-center py-8">
-                <Wifi className="h-12 w-12 text-whatsapp mx-auto mb-4" />
-                <p className="text-lg font-medium text-whatsapp">WhatsApp Conectado!</p>
-                <p className="text-sm text-muted-foreground">
-                  Pronto para enviar e receber mensagens
-                </p>
+          <CardContent className="flex flex-col items-center space-y-4">
+            {qrCode && status !== 'connected' ? (
+              <div className="border rounded-lg p-4 bg-white">
+                <canvas 
+                  ref={qrCanvasRef}
+                  className="w-64 h-64"
+                />
               </div>
             ) : (
-              <div className="text-center py-8">
-                <QrCode className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-lg font-medium">Aguardando QR Code</p>
-                <p className="text-sm text-muted-foreground">
-                  Clique em "Conectar" para gerar o QR Code
-                </p>
+              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 w-64 h-64 flex items-center justify-center">
+                <div className="text-center">
+                  <QrCode className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    {status === 'connected' 
+                      ? 'WhatsApp já está conectado' 
+                      : status === 'connecting'
+                      ? 'Gerando QR Code...'
+                      : 'Clique em "Conectar" para gerar o QR Code'
+                    }
+                  </p>
+                </div>
               </div>
             )}
           </CardContent>

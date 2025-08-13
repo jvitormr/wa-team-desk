@@ -5,3 +5,15 @@ verify_jwt = true
 
 [functions.whatsapp-disconnect]
 verify_jwt = true
+
+[functions.wa-start]
+verify_jwt = true
+
+[functions.wa-status]
+verify_jwt = true
+
+[functions.wa-logout]
+verify_jwt = true
+
+[functions.wa-ws]
+verify_jwt = false

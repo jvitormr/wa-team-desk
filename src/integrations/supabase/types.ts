@@ -538,6 +538,27 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_auth: {
+        Row: {
+          created_at: string
+          data: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       whatsapp_sessions: {
         Row: {
           created_at: string
@@ -565,6 +586,24 @@ export type Database = {
           qr_code?: string | null
           session_id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      whatsapp_status: {
+        Row: {
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          status?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
