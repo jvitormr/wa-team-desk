@@ -44,15 +44,19 @@ serve(async (req) => {
       });
     }
 
-    // Clear auth data and update status
+    // Update status to disconnected and clear session
     await Promise.all([
       supabase
-        .from("whatsapp_auth")
-        .delete()
-        .eq("user_id", user.id),
-      supabase
         .from("whatsapp_status")
-        .upsert({ user_id: user.id, status: "disconnected" })
+        .upsert({ user_id: user.id, status: "disconnected" }),
+      supabase
+        .from("whatsapp_sessions")
+        .upsert({
+          session_id: user.id,
+          qr_code: null,
+          is_connected: false,
+          last_ping_at: new Date().toISOString(),
+        })
     ]);
 
     console.log(`WhatsApp logout for user ${user.id}`);

@@ -93,6 +93,11 @@ export default function WhatsAppConnectionPage() {
         return;
       }
 
+      // Close existing WebSocket if any
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+
       // Start WA connection
       const { data: startData, error } = await supabase.functions.invoke('wa-start', {
         headers: {
@@ -117,28 +122,23 @@ export default function WhatsAppConnectionPage() {
 
       // Open WebSocket connection
       const wsUrl = startData.wsUrl as string;
-
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      console.log('Connecting to WebSocket:', wsUrl);
 
       wsRef.current = new WebSocket(wsUrl);
       
       wsRef.current.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('WebSocket connected successfully');
         setStatus('connecting');
       };
       
       wsRef.current.onmessage = async (event) => {
         try {
           const message = JSON.parse(event.data);
-          console.log('WebSocket message:', message);
+          console.log('WebSocket message received:', message);
           
           if (message.type === 'qr') {
             setQrCode(message.qr);
             setStatus('qr_ready');
-            
-            
             toast({
               title: "QR Code gerado",
               description: "Escaneie com seu WhatsApp"
@@ -158,10 +158,10 @@ export default function WhatsAppConnectionPage() {
                 title: "Desconectado",
                 description: "WhatsApp desconectado"
               });
-            } else if (message.status === 'reconnecting') {
+            } else if (message.status === 'connecting') {
               toast({
-                title: "Reconectando",
-                description: "Reconectando..."
+                title: "Conectando",
+                description: "Estabelecendo conexão..."
               });
             }
           } else if (message.type === 'error') {
@@ -177,8 +177,12 @@ export default function WhatsAppConnectionPage() {
         }
       };
       
-      wsRef.current.onclose = () => {
-        console.log('WebSocket disconnected');
+      wsRef.current.onclose = (event) => {
+        console.log('WebSocket disconnected:', event.code, event.reason);
+        wsRef.current = null;
+        if (event.code !== 1000) { // Not a normal closure
+          setStatus('disconnected');
+        }
       };
       
       wsRef.current.onerror = (error) => {
@@ -188,6 +192,7 @@ export default function WhatsAppConnectionPage() {
           description: "Erro na comunicação com o servidor",
           variant: "destructive"
         });
+        setStatus('error');
       };
       
     } catch (error) {
@@ -197,12 +202,15 @@ export default function WhatsAppConnectionPage() {
         description: "Erro ao iniciar conexão",
         variant: "destructive"
       });
+      setStatus('error');
     } finally {
       setConnecting(false);
     }
   };
 
   const disconnectSession = async () => {
+    setLoading(true);
+    
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
@@ -212,6 +220,12 @@ export default function WhatsAppConnectionPage() {
           variant: "destructive"
         });
         return;
+      }
+
+      // Close WebSocket first
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
       }
 
       const { data, error } = await supabase.functions.invoke('wa-logout', {
@@ -236,10 +250,8 @@ export default function WhatsAppConnectionPage() {
         setStatus('disconnected');
         setQrCode(null);
         
-        // Close WebSocket
-        if (wsRef.current) {
-          wsRef.current.close();
-        }
+        // Refresh status after disconnect
+        setTimeout(() => fetchStatus(), 1000);
       }
     } catch (error) {
       console.error('Error disconnecting:', error);
@@ -248,6 +260,8 @@ export default function WhatsAppConnectionPage() {
         description: "Erro ao desconectar",
         variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
 
