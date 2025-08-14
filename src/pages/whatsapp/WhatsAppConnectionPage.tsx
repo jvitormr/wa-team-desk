@@ -50,11 +50,14 @@ export default function WhatsAppConnectionPage() {
         return;
       }
 
+      console.log('Fetching WhatsApp status...');
       const response = await supabase.functions.invoke('wa-status', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
       });
+
+      console.log('Status response:', response);
 
       if (response.error) {
         console.error('Error fetching status:', response.error);
@@ -64,7 +67,9 @@ export default function WhatsAppConnectionPage() {
           variant: "destructive"
         });
       } else {
-        setStatus(response.data?.status || 'disconnected');
+        const currentStatus = response.data?.status || 'disconnected';
+        console.log('Current status:', currentStatus);
+        setStatus(currentStatus);
       }
     } catch (error) {
       console.error('Error fetching status:', error);
@@ -98,6 +103,7 @@ export default function WhatsAppConnectionPage() {
         wsRef.current.close();
       }
 
+      console.log('Starting WhatsApp connection...');
       // Start WA connection
       const { data: startData, error } = await supabase.functions.invoke('wa-start', {
         headers: {
@@ -105,11 +111,13 @@ export default function WhatsAppConnectionPage() {
         },
       });
 
+      console.log('wa-start response:', startData, error);
+
       if (error || !startData?.wsUrl) {
         console.error('Error starting connection:', error);
         toast({
           title: "Erro",
-          description: "Erro ao iniciar conexão",
+          description: `Erro ao iniciar conexão: ${error?.message || 'URL WebSocket não retornada'}`,
           variant: "destructive"
         });
         return;
