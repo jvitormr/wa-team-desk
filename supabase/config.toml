@@ -17,3 +17,15 @@ verify_jwt = true
 
 [functions.wa-ws]
 verify_jwt = false
+
+[functions.waha-start-session]
+verify_jwt = true
+
+[functions.waha-screenshot]
+verify_jwt = true
+
+[functions.waha-send-text]
+verify_jwt = true
+
+[functions.waha-webhook]
+verify_jwt = false

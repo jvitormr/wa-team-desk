@@ -13,7 +13,8 @@ export default function WhatsAppConnectionPage() {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
+  const [sessionName, setSessionName] = useState<string>('');
+  const [qrImageUrl, setQrImageUrl] = useState<string>('');
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -31,11 +32,6 @@ export default function WhatsAppConnectionPage() {
 
   useEffect(() => {
     fetchStatus();
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
   }, []);
 
   const fetchStatus = async () => {
@@ -68,8 +64,15 @@ export default function WhatsAppConnectionPage() {
         });
       } else {
         const currentStatus = response.data?.status || 'disconnected';
-        console.log('Current status:', currentStatus);
+        const sessionName = response.data?.session_name || '';
+        console.log('Current status:', currentStatus, 'Session:', sessionName);
         setStatus(currentStatus);
+        setSessionName(sessionName);
+        
+        // Se conectando, buscar QR code
+        if (currentStatus === 'connecting' && sessionName) {
+          await fetchQRCode(sessionName);
+        }
       }
     } catch (error) {
       console.error('Error fetching status:', error);
@@ -83,9 +86,44 @@ export default function WhatsAppConnectionPage() {
     }
   };
 
+  const fetchQRCode = async (session: string) => {
+    try {
+      const { data: authSession } = await supabase.auth.getSession();
+      
+      if (!authSession?.session) {
+        console.error('No auth session found');
+        return;
+      }
+
+      console.log('Fetching QR code for session:', session);
+      const response = await supabase.functions.invoke('waha-screenshot', {
+        headers: {
+          Authorization: `Bearer ${authSession.session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        console.error('Error fetching QR code:', response.error);
+        // Retry after a delay if session is still connecting
+        if (status === 'connecting') {
+          setTimeout(() => fetchQRCode(session), 3000);
+        }
+      } else if (response.data) {
+        // Create object URL for the image
+        const blob = new Blob([response.data], { type: 'image/png' });
+        const imageUrl = URL.createObjectURL(blob);
+        setQrImageUrl(imageUrl);
+        setStatus('qr_ready');
+      }
+    } catch (error) {
+      console.error('Error fetching QR code:', error);
+    }
+  };
+
   const startConnection = async () => {
     setConnecting(true);
     setQrCode(null);
+    setQrImageUrl('');
     
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -98,110 +136,70 @@ export default function WhatsAppConnectionPage() {
         return;
       }
 
-      // Close existing WebSocket if any
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-
-      console.log('Starting WhatsApp connection...');
-      // Start WA connection
-      const { data: startData, error } = await supabase.functions.invoke('wa-start', {
+      console.log('Starting WAHA session...');
+      
+      // Start WAHA session
+      const { data: startData, error } = await supabase.functions.invoke('waha-start-session', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
+        body: {}
       });
 
-      console.log('wa-start response:', startData, error);
+      console.log('waha-start-session response:', startData, error);
 
-      if (error || !startData?.wsUrl) {
-        console.error('Error starting connection:', error);
+      if (error) {
+        console.error('Error starting session:', error);
         toast({
           title: "Erro",
-          description: `Erro ao iniciar conexão: ${error?.message || 'URL WebSocket não retornada'}`,
+          description: `Erro ao iniciar sessão: ${error?.message}`,
           variant: "destructive"
         });
         return;
       }
 
+      setStatus('connecting');
       toast({
         title: "Sucesso",
-        description: "Iniciando conexão WhatsApp..."
+        description: "Iniciando sessão WhatsApp..."
       });
 
-      // Open WebSocket connection
-      const wsUrl = startData.wsUrl as string;
-      console.log('Connecting to WebSocket:', wsUrl);
-
-      wsRef.current = new WebSocket(wsUrl);
-      
-      wsRef.current.onopen = () => {
-        console.log('WebSocket connected successfully');
-        setStatus('connecting');
-      };
-      
-      wsRef.current.onmessage = async (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          console.log('WebSocket message received:', message);
+      // Start polling for QR code
+      const pollQRCode = async () => {
+        let attempts = 0;
+        const maxAttempts = 60; // 5 minutes max
+        
+        const poll = setInterval(async () => {
+          attempts++;
           
-          if (message.type === 'qr') {
-            setQrCode(message.qr);
-            setStatus('qr_ready');
+          if (attempts > maxAttempts) {
+            clearInterval(poll);
             toast({
-              title: "QR Code gerado",
-              description: "Escaneie com seu WhatsApp"
-            });
-          } else if (message.type === 'status') {
-            setStatus(message.status);
-            
-            if (message.status === 'connected') {
-              setQrCode(null);
-              toast({
-                title: "Conectado",
-                description: "WhatsApp conectado com sucesso!"
-              });
-            } else if (message.status === 'disconnected') {
-              setQrCode(null);
-              toast({
-                title: "Desconectado",
-                description: "WhatsApp desconectado"
-              });
-            } else if (message.status === 'connecting') {
-              toast({
-                title: "Conectando",
-                description: "Estabelecendo conexão..."
-              });
-            }
-          } else if (message.type === 'error') {
-            toast({
-              title: "Erro",
-              description: message.message || 'Erro na conexão',
+              title: "Timeout",
+              description: "Tempo limite excedido para gerar QR code",
               variant: "destructive"
             });
             setStatus('error');
+            return;
           }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
+
+          // Check current status
+          await fetchStatus();
+          
+          // If session name is available, try to get QR code
+          if (sessionName) {
+            await fetchQRCode(sessionName);
+          }
+          
+          // Stop polling if connected or error
+          if (status === 'connected' || status === 'error') {
+            clearInterval(poll);
+          }
+        }, 5000); // Poll every 5 seconds
       };
-      
-      wsRef.current.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
-        wsRef.current = null;
-        if (event.code !== 1000) { // Not a normal closure
-          setStatus('disconnected');
-        }
-      };
-      
-      wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        toast({
-          title: "Erro",
-          description: "Erro na comunicação com o servidor",
-          variant: "destructive"
-        });
-        setStatus('error');
-      };
+
+      // Start polling after a short delay
+      setTimeout(pollQRCode, 2000);
       
     } catch (error) {
       console.error('Error starting connection:', error);
@@ -230,11 +228,9 @@ export default function WhatsAppConnectionPage() {
         return;
       }
 
-      // Close WebSocket first
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
+      // Clear QR image URL
+      setQrImageUrl('');
+      setQrCode(null);
 
       const { data, error } = await supabase.functions.invoke('wa-logout', {
         headers: {
@@ -391,12 +387,20 @@ export default function WhatsAppConnectionPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-4">
-            {qrCode && status !== 'connected' ? (
+            {(qrCode || qrImageUrl) && status !== 'connected' ? (
               <div className="border rounded-lg p-4 bg-white">
-                <canvas 
-                  ref={qrCanvasRef}
-                  className="w-64 h-64"
-                />
+                {qrImageUrl ? (
+                  <img 
+                    src={qrImageUrl}
+                    alt="QR Code WhatsApp"
+                    className="w-64 h-64 object-contain"
+                  />
+                ) : (
+                  <canvas 
+                    ref={qrCanvasRef}
+                    className="w-64 h-64"
+                  />
+                )}
               </div>
             ) : (
               <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 w-64 h-64 flex items-center justify-center">
@@ -405,7 +409,7 @@ export default function WhatsAppConnectionPage() {
                   <p className="text-sm text-muted-foreground">
                     {status === 'connected' 
                       ? 'WhatsApp já está conectado' 
-                      : status === 'connecting'
+                      : status === 'connecting' || status === 'qr_ready'
                       ? 'Gerando QR Code...'
                       : 'Clique em "Conectar" para gerar o QR Code'
                     }
